@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Krusty's Arcade</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; padding: 0; }
+    @keyframes bounce { 0%,100%{transform:translateY(-10%);animation-timing-function:cubic-bezier(.8,0,1,1)} 50%{transform:translateY(0);animation-timing-function:cubic-bezier(0,0,.2,1)} }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    .animate-bounce { animation: bounce 1s infinite; }
+    .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const DONATE_ADDRESS = '0x844b9e33ffc8cae3081c9ec94117e60a35ac9185';
+const STORAGE_KEY = 'krusty-waitlist';
+
+function loadEntries() {
+  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+}
+function saveEntry(entry) {
+  try { const e = loadEntries(); e.push(entry); localStorage.setItem(STORAGE_KEY, JSON.stringify(e)); return e; } catch { return []; }
+}
+function downloadCSV(entries) {
+  if (!entries.length) return;
+  const csv = ['Farcaster Handle,Wallet Address,Timestamp', ...entries.map(e => `"${e.farcasterHandle}","${e.walletAddress}","${e.timestamp}"`)].join('\n');
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], {type:'text/csv'})), download: 'krusty-waitlist.csv' });
+  a.click();
+}
+
+function WaitlistModal({ onClose }) {
+  const [handle, setHandle] = useState('');
+  const [wallet, setWallet] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [count, setCount] = useState(() => loadEntries().length);
+
+  const handleSubmit = () => {
+    if (!handle || !wallet) return;
+    const updated = saveEntry({ farcasterHandle: handle, walletAddress: wallet, timestamp: new Date().toISOString() });
+    setCount(updated.length);
+    setSubmitted(true);
+    setTimeout(() => onClose(), 3000);
+  };
+
+  if (submitted) return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-green-400 to-green-500 rounded-3xl p-8 shadow-2xl border-4 border-yellow-300 max-w-md text-center">
+        <div className="text-6xl mb-4">🎉</div>
+        <h3 className="text-3xl font-black text-white mb-2">SUCCESS!</h3>
+        <p className="text-lg font-bold text-white">You've joined the waitlist!</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="relative bg-white rounded-3xl p-8 shadow-2xl border-4 border-red-600 max-w-md w-full">
+        <button onClick={onClose} className="absolute top-4 right-4 text-2xl hover:scale-110 transition">✕</button>
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-black text-red-600 mb-2">JOIN THE WAITLIST</h2>
+          <p className="text-gray-700 font-bold">Be first to play when we launch!</p>
+          {count > 0 && <p className="text-sm font-black text-green-600 mt-1">🔥 {count} already signed up!</p>}
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-black text-gray-800 mb-2">🌐 FARCASTER HANDLE</label>
+            <input type="text" placeholder="@yourhandle" value={handle} onChange={e => setHandle(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-red-600 focus:outline-none font-bold" />
+          </div>
+          <div>
+            <label className="block text-sm font-black text-gray-800 mb-2">💰 WALLET ADDRESS</label>
+            <input type="text" placeholder="0x..." value={wallet} onChange={e => setWallet(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-red-600 focus:outline-none font-bold" />
+          </div>
+          <button onClick={handleSubmit} className="w-full bg-gradient-to-r from-red-500 to-pink-600 text-white font-black text-lg py-4 rounded-xl hover:scale-105 transition transform shadow-lg">JOIN WAITLIST 🚀</button>
+        </div>
+        <p className="text-xs text-center text-gray-600 mt-4">We'll notify you when the arcade launches!</p>
+      </div>
+    </div>
+  );
+}
+
+function AdminPage({ onBack }) {
+  const [entries, setEntries] = useState(() => loadEntries());
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-black text-yellow-400">📋 WAITLIST ADMIN</h1>
+            <p className="text-gray-400 font-bold mt-1">{entries.length} signup{entries.length !== 1 ? 's' : ''} total</p>
+          </div>
+          <div className="flex gap-3">
+            {entries.length > 0 && <button onClick={() => downloadCSV(entries)} className="bg-green-600 hover:bg-green-500 text-white font-black px-4 py-2 rounded-xl transition">⬇️ CSV</button>}
+            <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 text-white font-black px-4 py-2 rounded-xl transition">🏠 BACK</button>
+          </div>
+        </div>
+        {entries.length === 0 ? (
+          <div className="text-center text-gray-500 text-xl font-black py-20">No signups yet!</div>
+        ) : (
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="bg-gray-700">
+                <th className="text-left px-4 py-3 text-yellow-400 font-black text-sm">#</th>
+                <th className="text-left px-4 py-3 text-yellow-400 font-black text-sm">FARCASTER</th>
+                <th className="text-left px-4 py-3 text-yellow-400 font-black text-sm">WALLET</th>
+                <th className="text-left px-4 py-3 text-yellow-400 font-black text-sm">DATE</th>
+              </tr></thead>
+              <tbody>{entries.map((e, i) => (
+                <tr key={i} className={`border-t border-gray-700 ${i % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'}`}>
+                  <td className="px-4 py-3 text-gray-400 font-bold text-sm">{i + 1}</td>
+                  <td className="px-4 py-3 text-white font-bold text-sm">{e.farcasterHandle}</td>
+                  <td className="px-4 py-3 text-gray-300 font-mono text-xs">{e.walletAddress}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">{new Date(e.timestamp).toLocaleString('en-AU', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DonateButtons() {
+  const [mmStatus, setMmStatus] = useState('idle');
+  const sendMetaMask = async () => {
+    if (!window.ethereum) { setMmStatus('nowallet'); setTimeout(() => setMmStatus('idle'), 3000); return; }
+    try {
+      setMmStatus('confirm');
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      await window.ethereum.request({ method: 'eth_sendTransaction', params: [{ from: accounts[0], to: DONATE_ADDRESS, value: '0x0' }] });
+      setMmStatus('success'); setTimeout(() => setMmStatus('idle'), 3000);
+    } catch { setMmStatus('error'); setTimeout(() => setMmStatus('idle'), 3000); }
+  };
+  const isMobile = /iPhone|Android|iPad/i.test(navigator.userAgent);
+  const rainbowBase = isMobile ? `rainbow://send?address=${DONATE_ADDRESS}&chainId=8453` : `https://rainbow.me/send?address=${DONATE_ADDRESS}&chainId=8453`;
+  const rainbowSol = isMobile ? `rainbow://send?address=${DONATE_ADDRESS}&chainId=1399811149` : `https://rainbow.me/send?address=${DONATE_ADDRESS}&chainId=1399811149`;
+  return (
+    <div className="flex gap-3 justify-center flex-wrap">
+      <button onClick={sendMetaMask} className="bg-gradient-to-r from-orange-400 to-orange-600 hover:from-orange-300 hover:to-orange-500 text-white font-black text-sm px-4 py-2 rounded-full transition transform hover:scale-105 shadow-md">
+        {mmStatus === 'idle' && '🦊 MetaMask'}{mmStatus === 'confirm' && '⏳ Check wallet...'}{mmStatus === 'success' && '✅ Sent!'}{mmStatus === 'error' && '❌ Cancelled'}{mmStatus === 'nowallet' && '⚠️ Install MetaMask'}
+      </button>
+      <a href={rainbowBase} target="_blank" rel="noopener noreferrer" className="bg-gradient-to-r from-blue-400 to-purple-500 text-white font-black text-sm px-4 py-2 rounded-full transition transform hover:scale-105 shadow-md">🌈 Rainbow · Base</a>
+      <a href={rainbowSol} target="_blank" rel="noopener noreferrer" className="bg-gradient-to-r from-purple-400 to-green-500 text-white font-black text-sm px-4 py-2 rounded-full transition transform hover:scale-105 shadow-md">🌈 Rainbow · SOL</a>
+      <a href={`https://pay.coinbase.com/buy/select-asset?destinationWallets=[{"address":"${DONATE_ADDRESS}","assets":["USDC"],"blockchains":["base","ethereum"]}]`} target="_blank" rel="noopener noreferrer" className="bg-gradient-to-r from-blue-400 to-blue-600 text-white font-black text-sm px-4 py-2 rounded-full transition transform hover:scale-105 shadow-md">💵 USDC</a>
+    </div>
+  );
+}
+
+function App() {
+  const [page, setPage] = useState('arcade');
+  const [currentGame, setCurrentGame] = useState(null);
+  const [muted, setMuted] = useState(false);
+  const [musicPlaying, setMusicPlaying] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState(0);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const audioRef = useRef(null);
+
+  const tracks = [
+    { label: '🎵 Stonecutters', src: 'stonecutters.mp3' },
+    { label: '🎵 China', src: 'china.mp3' },
+  ];
+
+  const toggleMusic = () => {
+    const a = audioRef.current; if (!a) return;
+    if (!musicPlaying) { a.play(); setMusicPlaying(true); }
+    else { a.pause(); setMusicPlaying(false); }
+  };
+
+  const switchTrack = (idx) => {
+    const a = audioRef.current; if (!a) return;
+    const was = musicPlaying;
+    setCurrentTrack(idx); a.pause(); a.src = tracks[idx].src; a.load();
+    if (was) a.play();
+  };
+
+  useEffect(() => { if (audioRef.current) audioRef.current.muted = muted; }, [muted]);
+
+  function KrustyBallToss() {
+    const [balls, setBalls] = useState(3);
+    const [hits, setHits] = useState(0);
+    const [over, setOver] = useState(false);
+    const throw_ = () => {
+      if (!balls) return;
+      const hit = Math.random() > 0.4;
+      const nh = hits + (hit ? 1 : 0), nb = balls - 1;
+      if (hit) setHits(nh); setBalls(nb);
+      if (nb === 0) setOver(true);
+    };
+    if (over) return (
+      <div className="relative text-center space-y-4">
+        <button onClick={() => setCurrentGame(null)} className="absolute top-0 left-0 bg-gray-800 text-white font-black py-2 px-4 rounded-full text-lg">🏠 HOME</button>
+        <h3 className="text-4xl font-black text-red-600">FINAL SCORE</h3>
+        <p className="text-6xl font-black text-yellow-400">{hits}/3</p>
+        <button onClick={() => setCurrentGame(null)} className="px-8 py-4 bg-gradient-to-r from-red-500 to-pink-500 text-white font-black text-xl rounded-full">BACK TO ARCADE</button>
+      </div>
+    );
+    return (
+      <div className="space-y-6 relative">
+        <button onClick={() => setCurrentGame(null)} className="absolute top-0 left-0 bg-gray-800 text-white font-black py-2 px-4 rounded-full text-lg">🏠 HOME</button>
+        <div className="text-center">
+          <h3 className="text-3xl font-black text-red-600 mb-2">KNOCK DOWN KRUSTY'S TARGETS</h3>
+          <p className="text-2xl font-black text-yellow-400">Balls Left: {balls}</p>
+          <p className="text-2xl font-black text-green-500">Hits: {hits}</p>
+        </div>
+        <div className="flex gap-6 justify-center">
+          {[1,2,3].map(t => <button key={t} onClick={throw_} disabled={!balls} className="w-24 h-24 bg-gradient-to-br from-red-400 to-red-600 rounded-full text-4xl hover:scale-110 transition shadow-lg active:scale-95">🎯</button>)}
+        </div>
+      </div>
+    );
+  }
+
+  function HomerDonutCatch() {
+    const [count, setCount] = useState(0);
+    const [time, setTime] = useState(10);
+    const [active, setActive] = useState(true);
+    useEffect(() => {
+      if (time <= 0) { setActive(false); return; }
+      const t = setTimeout(() => setTime(t => t - 1), 1000); return () => clearTimeout(t);
+    }, [time]);
+    if (!active) return (
+      <div className="relative text-center space-y-4">
+        <button onClick={() => setCurrentGame(null)} className="absolute top-0 left-0 bg-gray-800 text-white font-black py-2 px-4 rounded-full text-lg">🏠 HOME</button>
+        <h3 className="text-4xl font-black text-yellow-500">TIME'S UP!</h3>
+        <p className="text-6xl font-black text-pink-500">{count} DONUTS!</p>
+        <button onClick={() => setCurrentGame(null)} className="px-8 py-4 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-black text-xl rounded-full">BACK TO ARCADE</button>
+      </div>
+    );
+    return (
+      <div className="space-y-6 relative">
+        <button onClick={() => setCurrentGame(null)} className="absolute top-0 left-0 bg-gray-800 text-white font-black py-2 px-4 rounded-full text-lg">🏠 HOME</button>
+        <div className="text-center">
+          <h3 className="text-3xl font-black text-yellow-500 mb-2">CATCH THE DONUTS!</h3>
+          <p className="text-2xl font-black text-pink-500">⏱️ Time: {time}s</p>
+          <p className="text-2xl font-black text-green-500">🍩 {count}</p>
+        </div>
+        <div className="flex flex-wrap gap-4 justify-center">
+          {[...Array(8)].map((_,i) => <button key={i} onClick={() => active && setCount(c=>c+1)} className="w-20 h-20 bg-pink-400 rounded-full text-4xl hover:scale-125 transition shadow-lg animate-bounce" style={{animationDelay:`${i*0.1}s`}}>🍩</button>)}
+        </div>
+      </div>
+    );
+  }
+
+  if (page === 'admin') return <AdminPage onBack={() => setPage('arcade')} />;
+
+  const games = [
+    { id:'krusty', name:'KRUSTY BALL TOSS', emoji:'🎯', color:'from-red-500 to-pink-600', desc:'Knock down 3 targets!' },
+    { id:'homer', name:'HOMER DONUT CATCH', emoji:'🍩', color:'from-yellow-400 to-yellow-600', desc:'Catch donuts in 10 seconds!' },
+    { id:'bart', name:'SKATE PARK BART', emoji:'🛹', color:'from-purple-500 to-blue-600', desc:'Shred the halfpipe!' },
+  ];
+  const wrap = "min-h-screen bg-gradient-to-b from-blue-300 to-blue-500 p-8";
+  const card = "bg-white rounded-3xl p-8 shadow-2xl border-4 border-yellow-400";
+  if (currentGame==='krusty') return <div className={wrap}><div className="max-w-2xl mx-auto"><div className={card}><KrustyBallToss /></div></div></div>;
+  if (currentGame==='homer') return <div className={wrap}><div className="max-w-2xl mx-auto"><div className={card}><HomerDonutCatch /></div></div></div>;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-300 via-blue-400 to-cyan-300 p-8 relative overflow-hidden">
+      <audio ref={audioRef} src={tracks[currentTrack].src} loop />
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(20)].map((_,i) => <div key={i} className="absolute text-4xl opacity-20 animate-pulse" style={{left:`${(i*17+7)%100}%`,top:`${(i*23+11)%100}%`,animationDelay:`${i*0.2}s`}}>⭐</div>)}
+      </div>
+      <button onClick={() => setPage('admin')} className="absolute top-4 right-4 z-20 bg-black bg-opacity-40 hover:bg-opacity-60 text-white font-black text-xs px-3 py-2 rounded-full transition">🔐 ADMIN</button>
+      <div className="max-w-4xl mx-auto relative z-10">
+        <div className="text-center mb-12">
+          <h1 className="text-7xl font-black text-red-600 drop-shadow-lg mb-2 animate-bounce">🎪 KRUSTY'S ARCADE 🎪</h1>
+          <p className="text-3xl font-black text-yellow-600 drop-shadow-lg">WELCOME TO SPRINGFIELD!</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {games.map(g => (
+            <div key={g.id} className={`bg-gradient-to-br ${g.color} rounded-3xl p-8 shadow-2xl border-4 border-yellow-300 relative overflow-hidden opacity-75`}>
+              <div className="absolute top-4 right-4 bg-black bg-opacity-60 text-white font-black text-xs px-3 py-1 rounded-full tracking-widest">COMING SOON</div>
+              <div className="text-6xl mb-4">{g.emoji}</div>
+              <h2 className="text-2xl font-black text-white drop-shadow-lg mb-2">{g.name}</h2>
+              <p className="text-white font-bold drop-shadow-lg">{g.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-3xl p-6 border-4 border-yellow-600 shadow-2xl text-center">
+          <div className="text-4xl mb-2">🪙</div>
+          <h3 className="text-2xl font-black text-red-600 mb-1">FUND THE ARCADE!</h3>
+          <p className="text-gray-800 font-bold mb-4">Send any token on Base or Ethereum</p>
+          <div className="bg-white rounded-2xl px-4 py-3 border-2 border-yellow-500 mb-4 flex items-center justify-between gap-2">
+            <span className="text-xs font-black text-gray-500 truncate">{DONATE_ADDRESS}</span>
+            <button onClick={() => navigator.clipboard.writeText(DONATE_ADDRESS)} className="shrink-0 bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-black text-xs px-3 py-1 rounded-lg transition">COPY</button>
+          </div>
+          <DonateButtons />
+        </div>
+        <div className="text-center mt-8 space-y-4">
+          <button onClick={() => setShowWaitlist(true)} className="bg-gradient-to-r from-purple-500 to-purple-700 text-white font-black py-4 px-8 rounded-full inline-flex items-center gap-2 shadow-lg text-lg transform hover:scale-105 transition">📋 JOIN WAITLIST</button>
+          <br />
+          <div className="inline-flex gap-3 flex-wrap justify-center">
+            <button onClick={toggleMusic} className="bg-gray-800 hover:bg-gray-700 text-white font-black py-3 px-6 rounded-full inline-flex items-center gap-2 shadow-lg">
+              {musicPlaying ? '⏸ PAUSE' : '▶️ PLAY'}
+            </button>
+            {tracks.map((t,i) => (
+              <button key={i} onClick={() => switchTrack(i)} className={`font-black py-3 px-5 rounded-full shadow-lg text-sm transition ${currentTrack===i ? 'bg-yellow-400 text-gray-900' : 'bg-gray-700 hover:bg-gray-600 text-white'}`}>{t.label}</button>
+            ))}
+            <button onClick={() => setMuted(!muted)} className="bg-gray-800 hover:bg-gray-700 text-white font-black py-3 px-6 rounded-full inline-flex items-center gap-2 shadow-lg">
+              {muted ? '🔇' : '🔊'}
+            </button>
+          </div>
+        </div>
+      </div>
+      {showWaitlist && <WaitlistModal onClose={() => setShowWaitlist(false)} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
