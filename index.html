@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Krusty's Arcade</title>
+  <title>Shelbifield Arcade</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { margin: 0; padding: 0; }
-    @keyframes bounce { 0%,100%{transform:translateY(-10%);animation-timing-function:cubic-bezier(.8,0,1,1)} 50%{transform:translateY(0);animation-timing-function:cubic-bezier(0,0,.2,1)} }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    @keyframes bounce { 0%,80%{transform:translateY(-10%);animation-timing-function:cubic-bezier(.8,0,.5,1)} 50%{transform:translateY(0);animation-timing-function:cubic-bezier(0,0,.2,1)} }
+    @keyframes pulse { 0%,80%{opacity:1} 50%{opacity:.5} }
     .animate-bounce { animation: bounce 1s infinite; }
     .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
   </style>
@@ -22,7 +22,7 @@
 const { useState, useEffect, useRef } = React;
 
 const DONATE_ADDRESS = '0x844b9e33ffc8cae3081c9ec94117e60a35ac9185';
-const STORAGE_KEY = 'krusty-waitlist';
+const STORAGE_KEY = '🙏🙏🙏🙏🙏';
 
 function loadEntries() {
   try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
